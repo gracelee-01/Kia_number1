@@ -54,7 +54,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .day.today .day-num { color: #1a56db; }
 .sun .day-num { color: #c8102e; }
 .sat .day-num { color: #1a56db; }
-.gtag { margin-top: 3px; font-size: 9px; background: #c8102e; color: white; border-radius: 4px; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gtag { margin-top: 3px; font-size: 9px; background: #c8102e; color: white; border-radius: 4px; padding: 2px 4px; white-space: normal; word-break: keep-all; line-height: 1.3; }
+.gtag.away { background: #888; }
 .gtag.special { background: #f59e0b; }
 .dots { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 3px; }
 .dot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; }
@@ -99,7 +100,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <text x="100" y="108" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="9" fill="white" letter-spacing="4">BASEBALL CLUB</text>
       <polygon points="100,128 85,118 85,110 115,110 115,118" fill="#0a1628" stroke="#c8102e" stroke-width="1"/>
     </svg>
-    <div class="logo-text"> 갸모임 전용</div>
+    <div class="logo-text">직관 멤버 전용</div>
   </div>
 
   <div class="start-card">
@@ -157,7 +158,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDbYi5nL6Fb3OEYxT82lK1hhDkmJN8U35s",
@@ -245,10 +246,19 @@ const DOW=["일","월","화","수","목","금","토"];
 function dk(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function showError(msg){ document.getElementById('errorMsg').textContent = msg; }
 
+// 리다이렉트 결과 먼저 처리 후 상태 감지
+getRedirectResult(auth).then((result) => {
+  // 리다이렉트 결과는 onAuthStateChanged가 자동으로 처리
+}).catch((e) => {
+  if (e?.code !== 'auth/no-current-user') {
+    showError('로그인에 실패했어요. 다시 시도해주세요.');
+  }
+});
+
 // 구글 로그인
 document.getElementById('googleBtn').addEventListener('click', async () => {
   try {
-    await signInWithPopup(auth, provider);
+    await signInWithRedirect(auth, provider);
   } catch(e) {
     showError('로그인에 실패했어요. 다시 시도해주세요.');
   }
@@ -262,25 +272,29 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user;
-    // 이미 등록된 유저인지 확인
-    const userRef = doc(db, 'users', user.uid);
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-      // 기존 유저 → 바로 입장
-      const data = userSnap.data();
-      myNick = data.nick;
-      myChannel = data.channel;
-      enterApp();
-    } else {
-      // 신규 유저 → 초대코드/닉네임 입력
-      document.getElementById('googleBtn').style.display = 'none';
-      document.getElementById('userInfo').style.display = 'flex';
-      document.getElementById('userPhoto').src = user.photoURL || '';
-      document.getElementById('userName').textContent = user.displayName || user.email;
-      document.getElementById('codeSection').style.display = 'block';
+    showError('로그인 확인 중...');
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        myNick = data.nick;
+        myChannel = data.channel;
+        enterApp();
+      } else {
+        showError('');
+        document.getElementById('googleBtn').style.display = 'none';
+        document.getElementById('userInfo').style.display = 'flex';
+        document.getElementById('userPhoto').src = user.photoURL || '';
+        document.getElementById('userName').textContent = user.displayName || user.email;
+        document.getElementById('codeSection').style.display = 'block';
+      }
+    } catch(e) {
+      showError('오류가 발생했어요. 새로고침 해주세요.');
     }
   } else {
     currentUser = null;
+    showError('');
     document.getElementById('googleBtn').style.display = 'flex';
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('codeSection').style.display = 'none';
