@@ -23,7 +23,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .start-input:focus { border-color: #c8102e; }
 .start-btn { width: 100%; background: #c8102e; color: white; border: none; border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 0.5rem; transition: background 0.2s; }
 .start-btn:hover { background: #a00d26; }
-.start-btn:disabled { opacity: 0.5; cursor: default; }
+.google-btn { width:100%; background:white; color:#333; border:none; border-radius:10px; padding:12px; font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:1rem; transition:background 0.2s; }
+.google-btn:hover { background:#f5f5f5; }
+#userInfo { display:none; align-items:center; gap:10px; margin-bottom:1rem; }
 .error-msg { font-size: 12px; color: #ff6b6b; text-align: center; margin-top: 10px; min-height: 18px; }
 #mainApp { display: none; }
 .app { max-width: 480px; margin: 0 auto; background: white; min-height: 100vh; }
@@ -53,7 +55,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .sun .day-num { color: #c8102e; }
 .sat .day-num { color: #1a56db; }
 .gtag { margin-top: 3px; font-size: 9px; background: #c8102e; color: white; border-radius: 4px; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gtag.away { background: #888; }
+.gtag.special { background: #f59e0b; }
 .dots { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 3px; }
 .dot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; }
 .panel { background: #f9f9f9; border-radius: 12px; border: 1px solid #eee; margin-top: 1rem; overflow: hidden; }
@@ -102,16 +104,31 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
   <div class="start-card">
     <h2>반가워요 🐯</h2>
-    <p>초대코드와 닉네임을 입력해주세요</p>
-    <div class="input-group">
-      <label>초대코드</label>
-      <input class="start-input" id="codeInput" type="text" placeholder="초대코드 입력..." maxlength="20" style="text-transform:uppercase; letter-spacing:3px;" />
+    <p>구글 계정으로 로그인하고 초대코드를 입력해주세요</p>
+
+    <div id="googleSection">
+      <button class="google-btn" id="googleBtn">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Google로 로그인
+      </button>
+      <div id="userInfo" style="display:none; align-items:center; gap:10px; margin-bottom:1rem;">
+        <img id="userPhoto" width="32" height="32" style="border-radius:50%;" src="" />
+        <span id="userName" style="font-size:13px; color:white;"></span>
+        <button style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:11px;cursor:pointer;" id="logoutBtn">로그아웃</button>
+      </div>
     </div>
-    <div class="input-group">
-      <label>닉네임</label>
-      <input class="start-input" id="nickInput" type="text" placeholder="닉네임 입력..." maxlength="8" />
+
+    <div id="codeSection" style="display:none;">
+      <div class="input-group">
+        <label>초대코드</label>
+        <input class="start-input" id="codeInput" type="text" placeholder="초대코드 입력..." maxlength="20" style="text-transform:uppercase; letter-spacing:3px;" />
+      </div>
+      <div class="input-group">
+        <label>닉네임</label>
+        <input class="start-input" id="nickInput" type="text" placeholder="닉네임 입력..." maxlength="8" />
+      </div>
+      <button class="start-btn" id="startBtn">입장하기 🐯</button>
     </div>
-    <button class="start-btn" id="startBtn">입장하기 🐯</button>
     <div class="error-msg" id="errorMsg"></div>
   </div>
 </div>
@@ -140,6 +157,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDbYi5nL6Fb3OEYxT82lK1hhDkmJN8U35s",
@@ -152,6 +170,8 @@ const firebaseConfig = {
 
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+const provider = new GoogleAuthProvider();
 
 const VALID_CODES = { "TIGERS27": "tigers27" };
 
@@ -190,7 +210,8 @@ const GAMES = {
   "2026-07-07":{"away":true,"opp":"롯데","time":"18:30"},
   "2026-07-08":{"away":true,"opp":"롯데","time":"18:30"},
   "2026-07-09":{"away":true,"opp":"롯데","time":"18:30"},
-  "2026-07-16":{"away":true,"opp":"SSG","time":"18:30"},
+  "2026-07-10":{"away":true,"opp":"올스타 프라이데이","time":"15:00","special":true},
+  "2026-07-11":{"away":true,"opp":"KBO 올스타전","time":"15:00","special":true},
   "2026-07-17":{"away":true,"opp":"SSG","time":"18:00"},
   "2026-07-18":{"away":true,"opp":"SSG","time":"18:00"},
   "2026-07-19":{"away":true,"opp":"SSG","time":"18:00"},
@@ -219,10 +240,52 @@ const GAMES = {
   "2026-08-15":{"away":false,"opp":"두산","time":"18:00"},
 };
 
-let curYear=2026, curMonth=5, selectedDate=null, myNick="", calData={}, chatUnsub=null, myChannel="";
+let curYear=2026, curMonth=5, selectedDate=null, myNick="", calData={}, chatUnsub=null, myChannel="", currentUser=null;
 const DOW=["일","월","화","수","목","금","토"];
 function dk(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function showError(msg){ document.getElementById('errorMsg').textContent = msg; }
+
+// 구글 로그인
+document.getElementById('googleBtn').addEventListener('click', async () => {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch(e) {
+    showError('로그인에 실패했어요. 다시 시도해주세요.');
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  auth.signOut();
+});
+
+// 로그인 상태 감지
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
+    // 이미 등록된 유저인지 확인
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      // 기존 유저 → 바로 입장
+      const data = userSnap.data();
+      myNick = data.nick;
+      myChannel = data.channel;
+      enterApp();
+    } else {
+      // 신규 유저 → 초대코드/닉네임 입력
+      document.getElementById('googleBtn').style.display = 'none';
+      document.getElementById('userInfo').style.display = 'flex';
+      document.getElementById('userPhoto').src = user.photoURL || '';
+      document.getElementById('userName').textContent = user.displayName || user.email;
+      document.getElementById('codeSection').style.display = 'block';
+    }
+  } else {
+    currentUser = null;
+    document.getElementById('googleBtn').style.display = 'flex';
+    document.getElementById('userInfo').style.display = 'none';
+    document.getElementById('codeSection').style.display = 'none';
+  }
+});
 
 async function handleStart() {
   const code = document.getElementById('codeInput').value.trim().toUpperCase();
@@ -237,44 +300,33 @@ async function handleStart() {
   try {
     const nickRef = doc(db, 'channels', channel, 'nicknames', nick);
     const nickSnap = await getDoc(nickRef);
-    if (nickSnap.exists()) {
+    if (nickSnap.exists() && nickSnap.data().uid !== currentUser.uid) {
       showError('이미 사용 중인 닉네임이에요. 다른 닉네임을 써주세요 🙏');
       btn.disabled = false;
       return;
     }
-    await setDoc(nickRef, { createdAt: serverTimestamp() });
+    await setDoc(nickRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
+    await setDoc(doc(db, 'users', currentUser.uid), { nick, channel, createdAt: serverTimestamp() });
     myNick = nick;
     myChannel = channel;
-    localStorage.setItem('kia_session', JSON.stringify({ nick, channel }));
-    document.getElementById('nickDisplay').textContent = myNick + '님 환영해요!';
-    document.getElementById('startScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    subscribeMonth(curYear, curMonth);
-    renderCal();
+    enterApp();
   } catch(e) {
     showError('오류가 발생했어요. 다시 시도해주세요.');
     btn.disabled = false;
   }
 }
 
+function enterApp() {
+  document.getElementById('nickDisplay').textContent = myNick + '님 환영해요!';
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  subscribeMonth(curYear, curMonth);
+  renderCal();
+}
+
 document.getElementById('startBtn').addEventListener('click', handleStart);
 document.getElementById('nickInput').addEventListener('keydown', e => { if(e.key==='Enter') handleStart(); });
 document.getElementById('codeInput').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('nickInput').focus(); });
-
-// 자동 로그인
-const saved = localStorage.getItem('kia_session');
-if (saved) {
-  try {
-    const { nick, channel } = JSON.parse(saved);
-    myNick = nick;
-    myChannel = channel;
-    document.getElementById('nickDisplay').textContent = myNick + '님 환영해요!';
-    document.getElementById('startScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    subscribeMonth(curYear, curMonth);
-    renderCal();
-  } catch(e) { localStorage.removeItem('kia_session'); }
-}
 document.getElementById('prevBtn').addEventListener('click', () => changeMonth(-1));
 document.getElementById('nextBtn').addEventListener('click', () => changeMonth(1));
 
@@ -327,7 +379,7 @@ function renderCal(){
     el.className=cls;
     el.innerHTML=`<div class="day-num">${d}</div>`;
     if(game){
-      el.innerHTML+=`<div class="gtag${game.away?' away':''}">${game.away?'@':'vs'}${game.opp}</div>`;
+      el.innerHTML+=`<div class="gtag${game.special?' special':game.away?' away':''}">${game.special?'⭐':game.away?'@':'vs'}${game.opp}</div>`;
       const atts=data?.attendees||[];
       if(atts.length)el.innerHTML+=`<div class="dots">${atts.map(()=>'<div class="dot"></div>').join('')}</div>`;
     }
@@ -344,7 +396,7 @@ function renderPanel(key){
   const isAtt=data.attendees.includes(myNick);
   const [y,m,d]=key.split('-');
   const ds=`${parseInt(m)}월 ${parseInt(d)}일`;
-  const gi=game?(game.away?'원정 @ ':'vs ')+game.opp+' · '+game.time:'경기 없음';
+  const gi=game?(game.special?'⭐ ':game.away?'원정 @ ':'vs ')+game.opp+' · '+game.time:'경기 없음';
 
   let aBtn='';
   if(!game) aBtn=`<div class="muted">이 날은 기아 경기가 없어요</div>`;
