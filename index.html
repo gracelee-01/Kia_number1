@@ -437,8 +437,15 @@ async function init(){
 
   if (!uid) { showStep('stepLogin'); return; }
 
-  // ③ 소속 방 확인
-  const savedRoom = localStorage.getItem('dg_room');
+  // ③ 소속 방 확인 — 기기 저장(localStorage) 우선, 없으면 서버(users/{uid})에서 조회
+  //    → 새 기기에서 로그인해도 내 방으로 바로 입장
+  let savedRoom = localStorage.getItem('dg_room');
+  if (!savedRoom) {
+    try {
+      const userSnap = await getDoc(doc(db,'users',uid));
+      if (userSnap.exists() && userSnap.data().roomId) savedRoom = userSnap.data().roomId;
+    } catch(e){ console.warn(e); }
+  }
   if (savedRoom) {
     try {
       const memSnap = await getDoc(doc(db,'rooms',savedRoom,'members',uid));
@@ -446,8 +453,9 @@ async function init(){
         const roomSnap = await getDoc(doc(db,'rooms',savedRoom));
         if (roomSnap.exists()) {
           const r = roomSnap.data(), m = memSnap.data();
-          roomId = savedRoom; roomName = r.name; roomCode = r.code;
+          roomId = savedRoom; roomName = r.name; roomCode = savedRoom;
           myNick = m.nick; myRole = m.role;
+          localStorage.setItem('dg_room', savedRoom);
           enterApp();
           return;
         }
@@ -486,6 +494,7 @@ $('createBtn').addEventListener('click', async () => {
     await setDoc(doc(db,'rooms',code,'members',uid), {
       nick, role: 'owner', joinedAt: serverTimestamp()
     });
+    await setDoc(doc(db,'users',uid), { roomId: code });  // 어느 기기서든 내 방 찾기용
     roomId = code; roomName = name; roomCode = code; myNick = nick; myRole = 'owner';
     localStorage.setItem('dg_room', roomId);
     enterApp();
@@ -522,6 +531,7 @@ async function handleJoin(){
     await setDoc(doc(db,'rooms',code,'members',uid), {
       nick, role: 'member', joinedAt: serverTimestamp()
     }, { merge: true });
+    await setDoc(doc(db,'users',uid), { roomId: code });  // 어느 기기서든 내 방 찾기용
 
     roomId = code; roomName = roomSnap.data().name; roomCode = code;
     myNick = nick; myRole = 'member';
