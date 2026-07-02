@@ -252,6 +252,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Got
       <div><span class="clock-time" id="clockTime">--:--:--</span><span class="clock-ms" id="clockMs">.---</span></div>
       <div class="clock-note">이 기기의 시각 기준 밀리초 표시예요.<br>티켓 오픈 1분 전에 미리 로그인해두는 걸 잊지 마세요!</div>
     </div>
+    <button class="tl-btn" id="pipBtn" style="background:none; border:1px solid rgba(255,255,255,0.25); margin-bottom:10px;">🪟 시계를 작은 창으로 띄우기 (PiP)</button>
     <button class="tl-btn" id="ticketlinkBtn">🎫 티켓링크 새 창으로 열기</button>
   </div>
 </div>
@@ -805,6 +806,103 @@ function startClock(){
 $('ticketlinkBtn').addEventListener('click', () => {
   window.open('https://www.ticketlink.co.kr/sports/baseball/62', '_blank', 'noopener');
 });
+
+/* ── PiP 시계: 캔버스에 시계를 그려 영상 스트림으로 변환 → 항상 위에 떠있는 작은 창
+   티켓링크 창을 크게 띄워놓고도 밀리초 시계를 계속 볼 수 있음 (PC 크롬/엣지 지원) */
+let pipVideo = null, pipRaf = null;
+
+function drawPipClock(ctx, w, h){
+  const now = new Date();
+  ctx.fillStyle = '#0a1628';
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = 'center';
+  // 날짜
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.font = '600 20px -apple-system, sans-serif';
+  ctx.fillText(`${now.getMonth()+1}월 ${now.getDate()}일 (${DOW[now.getDay()]})`, w/2, 40);
+  // 시:분:초 + 밀리초
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  const ms = String(now.getMilliseconds()).padStart(3,'0');
+  ctx.font = '800 64px -apple-system, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  const timeStr = `${hh}:${mm}:${ss}`;
+  const timeW = ctx.measureText(timeStr).width;
+  ctx.font = '700 36px -apple-system, sans-serif';
+  const msW = ctx.measureText('.' + ms).width;
+  const startX = (w - timeW - msW) / 2;
+  ctx.textAlign = 'left';
+  ctx.font = '800 64px -apple-system, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(timeStr, startX, h/2 + 30);
+  ctx.font = '700 36px -apple-system, sans-serif';
+  ctx.fillStyle = '#c8102e';
+  ctx.fillText('.' + ms, startX + timeW, h/2 + 30);
+}
+
+async function openPipClock(){
+  // Safari는 표준 PiP API 대신 웹킷 전용 API를 사용 → 두 경로 모두 지원
+  const stdPip = document.pictureInPictureEnabled;
+  const probe = document.createElement('video');
+  const webkitPip = typeof probe.webkitSupportsPresentationMode === 'function'
+                 && probe.webkitSupportsPresentationMode('picture-in-picture');
+  if (!stdPip && !webkitPip){
+    toast('이 브라우저는 PiP를 지원하지 않아요 (PC 크롬/엣지/사파리 권장)');
+    return;
+  }
+  try {
+    // 이미 떠있으면 닫기 (토글)
+    if (document.pictureInPictureElement){
+      await document.exitPictureInPicture();
+      return;
+    }
+    if (pipVideo && pipVideo.webkitPresentationMode === 'picture-in-picture'){
+      pipVideo.webkitSetPresentationMode('inline');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 480; canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+    drawPipClock(ctx, canvas.width, canvas.height);
+
+    pipVideo = document.createElement('video');
+    pipVideo.srcObject = canvas.captureStream(30);
+    pipVideo.muted = true;
+    pipVideo.playsInline = true;
+    // display:none이면 PiP 진입이 막히는 브라우저가 있어 화면 밖 1px로 배치
+    pipVideo.style.cssText = 'position:fixed; left:-9999px; width:1px; height:1px;';
+    document.body.appendChild(pipVideo);
+    await pipVideo.play();
+
+    if (stdPip && pipVideo.requestPictureInPicture){
+      await pipVideo.requestPictureInPicture();
+    } else {
+      pipVideo.webkitSetPresentationMode('picture-in-picture');
+    }
+
+    const loop = () => { drawPipClock(ctx, canvas.width, canvas.height); pipRaf = requestAnimationFrame(loop); };
+    loop();
+
+    const cleanup = () => {
+      if (pipRaf) cancelAnimationFrame(pipRaf);
+      pipRaf = null;
+      if (pipVideo){ pipVideo.remove(); pipVideo = null; }
+    };
+    pipVideo.addEventListener('leavepictureinpicture', cleanup);
+    // Safari 전용: 프레젠테이션 모드 변화 감지
+    pipVideo.addEventListener('webkitpresentationmodechanged', () => {
+      if (pipVideo && pipVideo.webkitPresentationMode === 'inline') cleanup();
+    });
+    toast('시계가 작은 창으로 떠있어요 — 티켓링크로 이동해도 계속 보여요!');
+  } catch(e) {
+    console.error(e);
+    toast('PiP 실행에 실패했어요. PC 크롬/엣지/사파리에서 시도해보세요.');
+    if (pipVideo){ pipVideo.remove(); pipVideo = null; }
+  }
+}
+
+$('pipBtn').addEventListener('click', openPipClock);
 
 /* ═════════ 시작 ═════════ */
 init();
